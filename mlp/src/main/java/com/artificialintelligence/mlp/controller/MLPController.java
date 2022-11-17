@@ -4,15 +4,12 @@ import com.artificialintelligence.mlp.model.*;
 import com.artificialintelligence.mlp.model.FuncoesTransferencia.Linear;
 import com.artificialintelligence.mlp.model.FuncoesTransferencia.Logistica;
 import com.artificialintelligence.mlp.model.FuncoesTransferencia.TangenteHiperbolica;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Locale;
 
 @RestController
 public class MLPController {
@@ -29,8 +26,6 @@ public class MLPController {
 
         // ATENCAO FAZER DEFINIÇÃO SE é LINEAR
         int opcaoFuncaoTransferencia = dados.getCalculationParameters().getTransferFunction();
-
-
 
         // 1º - Transformar a Matriz e faz One Hot Encode
         classes = new OneHotEncoding()
@@ -53,12 +48,13 @@ public class MLPController {
         ArrayList<Double> vetorErroRede;
         double mediaErroRedeAtual;
         double taxaAprendizagem = dados.getCalculationParameters().getLearningRate();
+        double valorErro = dados.getCalculationParameters().getErrorValue();
         int totalLinhas = dadosOneHotEncoding.length;
         int totalEntradas = dadosOneHotEncoding[0].length - classes.length;
         int totalSaidas = classes.length;
         do {
             vetorErroRede  = new ArrayList<Double>();
-            System.out.printf("\n\n------------- Repetição -> " + (numRepeticoes+1));
+//            System.out.printf("\n\n------------- Repetição -> " + (numRepeticoes+1));
 //        for (int i=0; i < totalLinhas   ; i++) { // É DESSA FORMA
             for (int i = 0; i < totalLinhas; i++) {
 //                System.out.printf("\nNum Entrada -> " + (i + 1)); // Espaço TESTE
@@ -128,7 +124,7 @@ public class MLPController {
                 }
 
 
-                // *** Calcular ERRO das SAIDAS
+                // *** Calcula ERRO das SAIDAS
                 if (opcaoFuncaoTransferencia == 1) {
                     calcularErroSaida(neuronios, totalSaidas,
                             dadosOneHotEncoding[i], new Linear());
@@ -140,57 +136,59 @@ public class MLPController {
                             dadosOneHotEncoding[i], new TangenteHiperbolica());
                 }
 
+
                 vetorErroRede.add(erroRede(neuronios, totalSaidas, dadosOneHotEncoding[i]));
 
+
+                // ------------------
+                // --> Backpropagation
+                // *** Calcular ERRO dos Neuronios INTERMEDIARIOS
+                if (opcaoFuncaoTransferencia == 1) {
+                    calcularErroCamadaOculta(neuronios, pesos, new Linear(),
+                            totalEntradas, totalSaidas);
+                } else if (opcaoFuncaoTransferencia == 2) {
+                    calcularErroCamadaOculta(neuronios, pesos, new Logistica(),
+                            totalEntradas, totalSaidas);
+                } else {
+                    calcularErroCamadaOculta(neuronios, pesos, new TangenteHiperbolica(),
+                            totalEntradas, totalSaidas);
+                }
+
+
+                // ** Calcular PESOS das ARESTAS
+                atualizaPesos(neuronios, pesos, totalEntradas,
+                        taxaAprendizagem);
+
+
+                // *** TIRAR DEPOIS ***
+//            // EXIBICAO TESTE
+//            int ate = neuronios.size();
+//            System.out.println();
+//            for (int l = 0; l < ate; l++) {
+//                System.out.printf("Net: %.2f\t | Saida: %.2f\t | Erro: %.4f \n",
+//                        neuronios.get(l).getNet(), neuronios.get(l).getSaida(),
+//                        neuronios.get(l).getErro());
+//            }
+
+            }
+
+            mediaErroRedeAtual = calculaMediaRedeAtual(vetorErroRede);
+            if (numRepeticoes % 10 == 0) {
+                mediaErroRedeTotal.add(new MediaErroRede(numRepeticoes, mediaErroRedeAtual));
+                System.out.printf("\nMÉDIA ERRO DE REDE ["+numRepeticoes+"] - "+ mediaErroRedeAtual);
             }
 
             numRepeticoes++;
-            mediaErroRedeAtual = calculaMediaRedeAtual(vetorErroRede);
-            mediaErroRedeTotal.add(new MediaErroRede(numRepeticoes, mediaErroRedeAtual));
-            System.out.printf("\nMÉDIA ERRO DE REDE ["+numRepeticoes+"] - "+ mediaErroRedeAtual);
-
-            // ------------------
-            // --> Backpropagation
-            // *** Calcular ERRO dos Neuronios INTERMEDIARIOS
-            if (mediaErroRedeAtual > taxaAprendizagem) {
-                if (opcaoFuncaoTransferencia == 1) {
-                    calcularErroIntermediario(neuronios, pesos, new Linear(),
-                            totalEntradas, totalSaidas);
-                } else if (opcaoFuncaoTransferencia == 2) {
-                    calcularErroIntermediario(neuronios, pesos, new Logistica(),
-                            totalEntradas, totalSaidas);
-                } else {
-                    calcularErroIntermediario(neuronios, pesos, new TangenteHiperbolica(),
-                            totalEntradas, totalSaidas);
-                }
-            }
-
-            // *** PAREI AQUI ***
-            // --> Fazer o calculo dos novos pesos das ARESTAS
-
-            // Por ÚLTIMO calcular novo peso para ARESTAS se ->
-            // tempMediaErroRede.get(tempMediaErroRede.size()-1) > taxaAprendizagem
-            // Faz isso porque pega ultimo erro de rede calculado, se for mais, ai
-            // tem refaz os calculos das arestas de pesos e atribuir novos pesos.
 
 
-
-            // *** TIRAR DEPOIS ***
-            // EXIBICAO TESTE
-            int ate = neuronios.size();
-            System.out.println();
-            for (int l = 0; l < ate; l++) {
-                System.out.printf("Net: %.2f\t| Saida: %.2f\t | Erro: %f \n",
-                        neuronios.get(l).getNet(), neuronios.get(l).getSaida(),
-                        neuronios.get(l).getErro());
-            }
+//
 
         // Coloque 1 para TESTE
-        }  while (numRepeticoes < 1 &&
-                mediaErroRedeAtual > taxaAprendizagem);
+//        }  while (numRepeticoes < 1 &&
+//                mediaErroRedeAtual > valorErro);
         // -- FORMA ABAIXO É A CERTA
-//        }  while (numRepeticoes < totalRepeticoes &&
-//        mediaErroRedeAtual > taxaAprendizagem);
+        }  while (numRepeticoes < totalRepeticoes &&
+        mediaErroRedeAtual > valorErro);
 
 
         return dados;
@@ -278,7 +276,6 @@ public class MLPController {
 
         double objetivo, obtido, erro;
         int totalNeuronios = neuronios.size();
-        System.out.println("");
         for(int atual = totalNeuronios - totalSaidas, classe = dados.length - totalSaidas;
             atual < totalNeuronios; atual++, classe++) {
             objetivo = dados[classe];
@@ -293,17 +290,12 @@ public class MLPController {
 
         double objetivo, obtido, erro;
         int totalNeuronios = neuronios.size();
-        System.out.println("");
         for(int atual = totalNeuronios - totalSaidas, classe = dados.length - totalSaidas;
             atual < totalNeuronios; atual++, classe++) {
-            System.out.println("ATUAL - " + atual);
             objetivo = dados[classe];
             obtido = neuronios.get(atual).getSaida();
             erro = (objetivo - obtido) * logistica.derivada(obtido);
             neuronios.get(atual).setErro(erro);
-            System.out.println("Erro - " + erro);
-            System.out.println("");
-
         }
     }
 
@@ -312,7 +304,6 @@ public class MLPController {
 
         double objetivo, obtido, erro;
         int totalNeuronios = neuronios.size();
-        System.out.println("");
         for(int atual = totalNeuronios - totalSaidas, classe = dados.length - totalSaidas;
             atual < totalNeuronios; atual++, classe++) {
             objetivo = dados[classe];
@@ -344,8 +335,8 @@ public class MLPController {
         return somatorioErros / tamanho;
     }
 
-    double somatorioPesosIntermediario(ArrayList<Neuronio>  neuronios, Pesos pesos, int posInicial,
-                                       int posNeuronioAtual, int totalPesos) {
+    double somatorioPesosCamadaOculta(ArrayList<Neuronio>  neuronios, Pesos pesos, int posInicial,
+                                      int posNeuronioAtual, int totalPesos) {
 
         int posNeuronioSaida;
         int pos = posInicial;
@@ -364,12 +355,12 @@ public class MLPController {
         return somatorio;
     }
 
-    void calcularErroIntermediario(ArrayList<Neuronio>  neuronios, Pesos pesos, Linear linear,
-                                   int totalEntrada, int totalSaidas) {
+    void calcularErroCamadaOculta(ArrayList<Neuronio>  neuronios, Pesos pesos, Linear linear,
+                                  int totalEntrada, int totalSaidas) {
 
         int ateNeuronio = neuronios.size() - totalSaidas;
         int totalPesos = pesos.getAllPeso().size();
-        int inicioPesosIntermediario = totalEntrada * totalEntrada;
+        int inicioPesosCamadaOculta = totalEntrada * totalEntrada;
         double somatorio;
         Neuronio neuronioAtual;
         for (int posNeuronioAtual=totalEntrada;
@@ -377,7 +368,7 @@ public class MLPController {
 
             neuronioAtual = neuronios.get(posNeuronioAtual);
 
-            somatorio = somatorioPesosIntermediario(neuronios, pesos, inicioPesosIntermediario,
+            somatorio = somatorioPesosCamadaOculta(neuronios, pesos, inicioPesosCamadaOculta,
                                         posNeuronioAtual, totalPesos);
 
             somatorio *= linear.derivada();
@@ -385,12 +376,12 @@ public class MLPController {
         }
     }
 
-    void calcularErroIntermediario(ArrayList<Neuronio>  neuronios, Pesos pesos, Logistica logistica,
-                                   int totalEntrada, int totalSaidas) {
+    void calcularErroCamadaOculta(ArrayList<Neuronio>  neuronios, Pesos pesos, Logistica logistica,
+                                  int totalEntrada, int totalSaidas) {
 
         int ateNeuronio = neuronios.size() - totalSaidas;
         int totalPesos = pesos.getAllPeso().size();
-        int inicioPesosIntermediario = totalEntrada * totalEntrada;
+        int inicioPesosCamadaOculta = totalEntrada * totalEntrada;
         double somatorio;
         Neuronio neuronioAtual;
         for (int posNeuronioAtual=totalEntrada;
@@ -398,7 +389,7 @@ public class MLPController {
 
             neuronioAtual = neuronios.get(posNeuronioAtual);
 
-            somatorio = somatorioPesosIntermediario(neuronios, pesos, inicioPesosIntermediario,
+            somatorio = somatorioPesosCamadaOculta(neuronios, pesos, inicioPesosCamadaOculta,
                     posNeuronioAtual, totalPesos);
 
             somatorio *= logistica.derivada(neuronioAtual.getSaida());
@@ -406,13 +397,13 @@ public class MLPController {
         }
     }
 
-    void calcularErroIntermediario(ArrayList<Neuronio>  neuronios, Pesos pesos,
-                                   TangenteHiperbolica tangenteHiperbolica,
-                                   int totalEntrada, int totalSaidas) {
+    void calcularErroCamadaOculta(ArrayList<Neuronio>  neuronios, Pesos pesos,
+                                  TangenteHiperbolica tangenteHiperbolica,
+                                  int totalEntrada, int totalSaidas) {
 
         int ateNeuronio = neuronios.size() - totalSaidas;
         int totalPesos = pesos.getAllPeso().size();
-        int inicioPesosIntermediario = totalEntrada * totalEntrada;
+        int inicioPesosCamadaOculta = totalEntrada * totalEntrada;
         double somatorio;
         Neuronio neuronioAtual;
         for (int posNeuronioAtual=totalEntrada;
@@ -420,12 +411,35 @@ public class MLPController {
 
             neuronioAtual = neuronios.get(posNeuronioAtual);
 
-            somatorio = somatorioPesosIntermediario(neuronios, pesos, inicioPesosIntermediario,
+            somatorio = somatorioPesosCamadaOculta(neuronios, pesos, inicioPesosCamadaOculta,
                     posNeuronioAtual, totalPesos);
 
             somatorio *= tangenteHiperbolica.derivada(neuronioAtual.getSaida());
             neuronioAtual.setErro(somatorio);
         }
+    }
+
+    void atualizaPesos(ArrayList<Neuronio>  neuronios, Pesos pesos, int totalEntradas,
+                       double taxaAprendizagem) {
+        int totalPesos = pesos.getAllPeso().size();
+        int pesosEntradas = totalEntradas * totalEntradas;
+        int posEntrada, posSaida;
+        Neuronio auxNeuronio;
+        double pesoAtual, novoPeso;
+        // Quando as entradas, são entradas do pesso faz, pesos camada oculta:
+
+        // -> Novopeso = peso(c,b) + TA * ErroC * EntradaB/SaidaB
+        for (int i=0; i < totalPesos; i++) {
+            pesoAtual = pesos.getPeso(i);
+            posEntrada = pesos.getPosEntrada(i);
+            posSaida = pesos.getPosSaida(i);
+            novoPeso = pesoAtual + taxaAprendizagem * neuronios.get(posSaida).getErro() *
+                    neuronios.get(posEntrada).getSaida();
+
+            pesos.setPeso(novoPeso, i);
+        }
+
+
     }
 
 

@@ -49,6 +49,11 @@ public class Pesos {
         this.peso.add(peso);
     }
 
+    public void setPeso(double peso, int pos) {
+            this.peso.set(pos, peso);
+    }
+
+
     public void inicializarPesos(int totalEntradas, int totalSaidas, int numCamadaOculta) {
         // ---> Criar veto PESOS
         int posSaida = totalEntradas * numCamadaOculta + totalEntradas;
