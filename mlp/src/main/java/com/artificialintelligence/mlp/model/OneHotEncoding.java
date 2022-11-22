@@ -50,7 +50,8 @@ public class OneHotEncoding {
         return classes;
     }
 
-    public double[][] tratarDados(String matrizDadosFront[][], int numSaidas, String[] classes) {
+    public double[][] tratarDados(String matrizDadosFront[][], int numSaidas, String[] classes,
+                                  int funcaoTransferencia) {
         int numLinhas = matrizDadosFront.length;
         int numColunas = matrizDadosFront[0].length;
         int posClasse = numColunas-1;
@@ -60,18 +61,36 @@ public class OneHotEncoding {
         // - Preencer as classes na Matriz One Hot Encode
         String tempClasse;
         int posAchouClasse;
-        for(int i=1, linha=0; i < numLinhas; i++) {
-            for (int j=0; j < posClasse; j++) {
-                oneHotEnconding[linha][j] = Double.parseDouble(matrizDadosFront[i][j]);
+//        if (funcaoTransferencia != 3) {
+            for (int i = 1, linha = 0; i < numLinhas; i++) {
+                for (int j = 0; j < posClasse; j++) {
+                    oneHotEnconding[linha][j] = Double.parseDouble(matrizDadosFront[i][j]);
+                }
+                tempClasse = matrizDadosFront[i][posClasse];
+                posAchouClasse = buscaPos(classes, tempClasse);
+                if (posAchouClasse != -1) {
+                    // Insere na posição o valor 1 conforme One Hot Encode
+                    oneHotEnconding[linha][posClasse + posAchouClasse] = 1;
+                }
+                linha++;
             }
-            tempClasse = matrizDadosFront[i][posClasse];
-            posAchouClasse = buscaPos(classes, tempClasse);
-            if (posAchouClasse != -1) {
-                // Insere na posição o valor 1 conforme One Hot Encode
-                oneHotEnconding[linha][posClasse + posAchouClasse] = 1;
-            }
-            linha++;
-        }
+//        } else { // Muda Para Tangente Hiperbolica
+//            for (int i = 1, linha = 0; i < numLinhas; i++) {
+//                for (int j = 0; j < posClasse; j++) {
+//                    oneHotEnconding[linha][j] = Double.parseDouble(matrizDadosFront[i][j]);
+//                }
+//                for (int j = posClasse; j < qtdeNovasColunas; j++) {
+//                    oneHotEnconding[linha][j] = -1;
+//                }
+//                tempClasse = matrizDadosFront[i][posClasse];
+//                posAchouClasse = buscaPos(classes, tempClasse);
+//                if (posAchouClasse != -1) {
+//                    // Insere na posição o valor 1 conforme One Hot Encode
+//                    oneHotEnconding[linha][posClasse + posAchouClasse] = 1;
+//                }
+//                linha++;
+//            }
+//        }
 
         return oneHotEnconding;
     }
@@ -80,7 +99,7 @@ public class OneHotEncoding {
     public void Exibicao(double[][] dadosOneHotEncoding) {
         for (int i=0; i<dadosOneHotEncoding.length; i++) {
             for (int j=0; j<dadosOneHotEncoding[0].length; j++) {
-                System.out.printf("%.2f   ", dadosOneHotEncoding[i][j]);
+                System.out.printf("%.4f   ", dadosOneHotEncoding[i][j]);
             }
             System.out.printf("\n");
         }
