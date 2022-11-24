@@ -61,7 +61,7 @@ public class OneHotEncoding {
         // - Preencer as classes na Matriz One Hot Encode
         String tempClasse;
         int posAchouClasse;
-//        if (funcaoTransferencia != 3) {
+        if (funcaoTransferencia != 3) {
             for (int i = 1, linha = 0; i < numLinhas; i++) {
                 for (int j = 0; j < posClasse; j++) {
                     oneHotEnconding[linha][j] = Double.parseDouble(matrizDadosFront[i][j]);
@@ -74,23 +74,23 @@ public class OneHotEncoding {
                 }
                 linha++;
             }
-//        } else { // Muda Para Tangente Hiperbolica
-//            for (int i = 1, linha = 0; i < numLinhas; i++) {
-//                for (int j = 0; j < posClasse; j++) {
-//                    oneHotEnconding[linha][j] = Double.parseDouble(matrizDadosFront[i][j]);
-//                }
-//                for (int j = posClasse; j < qtdeNovasColunas; j++) {
-//                    oneHotEnconding[linha][j] = -1;
-//                }
-//                tempClasse = matrizDadosFront[i][posClasse];
-//                posAchouClasse = buscaPos(classes, tempClasse);
-//                if (posAchouClasse != -1) {
-//                    // Insere na posição o valor 1 conforme One Hot Encode
-//                    oneHotEnconding[linha][posClasse + posAchouClasse] = 1;
-//                }
-//                linha++;
-//            }
-//        }
+        } else { // Muda Para Tangente Hiperbolica
+            for (int i = 1, linha = 0; i < numLinhas; i++) {
+                for (int j = 0; j < posClasse; j++) {
+                    oneHotEnconding[linha][j] = Double.parseDouble(matrizDadosFront[i][j]);
+                }
+                for (int j = posClasse; j < qtdeNovasColunas; j++) {
+                    oneHotEnconding[linha][j] = -1;
+                }
+                tempClasse = matrizDadosFront[i][posClasse];
+                posAchouClasse = buscaPos(classes, tempClasse);
+                if (posAchouClasse != -1) {
+                    // Insere na posição o valor 1 conforme One Hot Encode
+                    oneHotEnconding[linha][posClasse + posAchouClasse] = 1;
+                }
+                linha++;
+            }
+        }
 
         return oneHotEnconding;
     }

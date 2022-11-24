@@ -7,7 +7,7 @@ public class TangenteHiperbolica {
     }
 
     public double derivada(double saida) {
-        return 1 - (Math.pow(saida, 2));
+        return 1.0 - (Math.pow(saida, 2));
     }
 
 

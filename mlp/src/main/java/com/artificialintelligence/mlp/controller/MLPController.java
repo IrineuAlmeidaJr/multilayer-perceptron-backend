@@ -129,50 +129,37 @@ public class MLPController {
                 // ------
 
 
-                // --> OBS: O laço tem que ser dentro da Função ARRUMAR
-                // -> Calcula NET e SAIDA nos Neuronios
                 if (opcaoFuncaoTransferencia == 1) {
                     calcularNetSaida(neuronios, pesos, totalEntradas, new Linear());
-                } else if (opcaoFuncaoTransferencia == 2) {
-                    calcularNetSaida(neuronios, pesos, totalEntradas, new Logistica());
-                } else {
-                    calcularNetSaida(neuronios, pesos, totalEntradas, new TangenteHiperbolica());
-                }
 
-
-                // *** Calcula ERRO das SAIDAS
-                if (opcaoFuncaoTransferencia == 1) {
                     calcularErroSaida(neuronios, totalSaidas,
                             dadosOneHotEncoding[i], new Linear());
+
+                    calcularErroCamadaOculta(neuronios, pesos, new Linear(),
+                            totalEntradas, totalSaidas);
                 } else if (opcaoFuncaoTransferencia == 2) {
+                    calcularNetSaida(neuronios, pesos, totalEntradas, new Logistica());
+
                     calcularErroSaida(neuronios, totalSaidas,
                             dadosOneHotEncoding[i], new Logistica());
+
+                    calcularErroCamadaOculta(neuronios, pesos, new Logistica(),
+                            totalEntradas, totalSaidas);
                 } else {
+                    calcularNetSaida(neuronios, pesos, totalEntradas, new TangenteHiperbolica());
+
                     calcularErroSaida(neuronios, totalSaidas,
                             dadosOneHotEncoding[i], new TangenteHiperbolica());
+
+                    calcularErroCamadaOculta(neuronios, pesos, new TangenteHiperbolica(),
+                            totalEntradas, totalSaidas);
                 }
 
-
                 vetorErroRede.add(erroRede(neuronios, totalSaidas, dadosOneHotEncoding[i]));
-
 
                 // *** EXIBIÇÃO
 //                Systemm.out.println("MEDIA PARCIAL - " +
 //                        vetorErroRede.get(vetorErroRede.size()-1));
-
-                // ------------------
-                // --> Backpropagation
-                // *** Calcular ERRO dos Neuronios INTERMEDIARIOS
-                if (opcaoFuncaoTransferencia == 1) {
-                    calcularErroCamadaOculta(neuronios, pesos, new Linear(),
-                            totalEntradas, totalSaidas);
-                } else if (opcaoFuncaoTransferencia == 2) {
-                    calcularErroCamadaOculta(neuronios, pesos, new Logistica(),
-                            totalEntradas, totalSaidas);
-                } else {
-                    calcularErroCamadaOculta(neuronios, pesos, new TangenteHiperbolica(),
-                            totalEntradas, totalSaidas);
-                }
 
 
                 // ** Calcular PESOS das ARESTAS
@@ -193,7 +180,7 @@ public class MLPController {
             }
 
             mediaErroRedeAtual = calculaMediaRedeAtual(vetorErroRede);
-            if (numRepeticoes % 10 == 0) {
+            if (numRepeticoes % 30 == 0) {
                 mediaErroRedeTotal.add(new MediaErroRede(numRepeticoes, mediaErroRedeAtual));
                 System.out.printf("MÉDIA ERRO DE REDE ["+(numRepeticoes+1)+"] - "+ mediaErroRedeAtual);
                 System.out.println("");
@@ -410,7 +397,7 @@ public class MLPController {
             erroRede += Math.pow((desejado - obtido), 2);
         }
 
-        erroRede /= 2;
+        erroRede /= 2.0;
 //        System.out.println("Erro Rede - " + erroRede);
         return erroRede;
     }
