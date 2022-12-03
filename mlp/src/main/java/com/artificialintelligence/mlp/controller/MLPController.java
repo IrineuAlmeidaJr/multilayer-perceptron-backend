@@ -18,22 +18,124 @@ public class MLPController {
     CalculationParameters calculationParameters;
     String[] classes;
     double[][] dadosOneHotEncoding;
+
+    double taxaAprendizagem;
+    double valorErro;
+    int opcaoFuncaoTransferencia;
+
+
     NormalizacaoValores[] fatorDeNormalizacao;
     ArrayList<Neuronio> neuronios;
     Pesos pesos;
     List<MediaErroRede> mediaErroRedeTotal;
 
-    @GetMapping("/saida")
+    @GetMapping("/grafico")
     public List<MediaErroRede> saidaDados() {
 //        System.out.println("ENTROU - ");
+        return mediaErroRedeTotal;
+    }
+
+    @GetMapping("/matriz")
+    public List<MediaErroRede> calculaArquivoTeste(@RequestBody EntradaDados dados) {
+
+        opcaoFuncaoTransferencia = dados.getCalculationParameters().getTransferFunction();
+
+        dadosOneHotEncoding = new OneHotEncoding()
+                .tratarDados(dados.getTrainingData(), dados.getCalculationParameters().getOutputLayer(),
+                        classes, opcaoFuncaoTransferencia);
+
+        int numCamadaOculta = dados.getCalculationParameters().getHiddenLayer();
+        int totalLinhas = dadosOneHotEncoding.length;
+        int totalEntradas = dadosOneHotEncoding[0].length - classes.length;
+        int totalSaidas = classes.length;
+
+        normalizarEntradas(dadosOneHotEncoding, totalEntradas);
+
+
+        for (int i = 0; i < totalLinhas; i++) {
+            // -> Gera neuronios de ENTRADA
+            neuronios = new ArrayList<Neuronio>();
+            for (int j = 0; j < totalEntradas; j++) {
+                neuronios.add(new Neuronio(0, dadosOneHotEncoding[i][j], 0));
+            }
+
+            // -> Gera CAMADA OCULTA
+            for (int camadaAtual = 0; camadaAtual < numCamadaOculta; camadaAtual++) {
+                for (int j = 0; j < totalEntradas; j++) {
+                    neuronios.add(new Neuronio(0, 0, 0));
+                }
+            }
+
+            // -> Gera neuronios de SAIDA
+            for (int j = 0; j < totalSaidas; j++) {
+                neuronios.add(new Neuronio(0, 0, 0));
+            }
+
+
+            if (opcaoFuncaoTransferencia == 1) {
+                calcularNetSaida(neuronios, pesos, totalEntradas, new Linear());
+            } else if (opcaoFuncaoTransferencia == 2) {
+                calcularNetSaida(neuronios, pesos, totalEntradas, new Logistica());
+            } else {
+                calcularNetSaida(neuronios, pesos, totalEntradas, new TangenteHiperbolica());
+            }
+
+
+
+            // saber de quem está mais próximo é o resultado
+            Neuronio tempNeuronio;
+            int posMenor = totalSaidas;
+            double valorSaidaAtual = neuronios.get(posMenor).getSaida();
+            double saidaMenor = valorSaidaAtual;
+            for(int atual = totalSaidas+1; atual < totalSaidas; atual++) {
+                valorSaidaAtual = neuronios.get(atual).getSaida();
+                if (valorSaidaAtual < saidaMenor) {
+                    saidaMenor = valorSaidaAtual;
+                    posMenor = atual;
+                }
+            }
+            // TL = 5
+            // total entrada = 3
+            //  0      1      2   3  4
+            // ENT1   ENT2   CA   CB CC
+
+            // *** ATENÇÃO: isso é só um teste, tem que ver como irei fazer para
+            // chamar no front, só chamar por enquanto não retorna nada, só para ver
+            // se está calculando correto
+
+            posMenor = posMenor - (totalEntradas - totalSaidas);
+            switch (posMenor) {
+                case 0:
+                    System.out.println("X1");
+                    break;
+                case 1:
+                    System.out.println("X2");
+                    break;
+                case 2:
+                    System.out.println("X3");
+                    break;
+                case 3:
+                    System.out.println("X4");
+                    break;
+                case 4:
+                    System.out.println("X5");
+                    break;
+                case 5:
+                    System.out.println("X6");
+                    break;
+            }
+
+
+        }
+
         return mediaErroRedeTotal;
     }
 
     @PostMapping("/entrada")
     public EntradaDados entradaDados(@RequestBody EntradaDados dados) {
 
-        // ATENCAO FAZER DEFINIÇÃO SE é LINEAR
-        int opcaoFuncaoTransferencia = dados.getCalculationParameters().getTransferFunction();
+
+        opcaoFuncaoTransferencia = dados.getCalculationParameters().getTransferFunction();
 
         // 1º - Transformar a Matriz e faz One Hot Encode
         classes = new OneHotEncoding()
@@ -56,8 +158,8 @@ public class MLPController {
         int numCamadaOculta = dados.getCalculationParameters().getHiddenLayer();
         ArrayList<Double> vetorErroRede;
         double mediaErroRedeAtual;
-        double taxaAprendizagem = dados.getCalculationParameters().getLearningRate();
-        double valorErro = dados.getCalculationParameters().getErrorValue();
+        taxaAprendizagem = dados.getCalculationParameters().getLearningRate();
+        valorErro = dados.getCalculationParameters().getErrorValue();
         int totalLinhas = dadosOneHotEncoding.length;
         int totalEntradas = dadosOneHotEncoding[0].length - classes.length;
         int totalSaidas = classes.length;
@@ -73,10 +175,7 @@ public class MLPController {
 
         do {
             vetorErroRede  = new ArrayList<Double>();
-//            System.out.printf("\n\n------------- Repetição -> " + (numRepeticoes+1));
-//        for (int i=0; i < totalLinhas   ; i++) { // É DESSA FORMA
             for (int i = 0; i < totalLinhas; i++) {
-//                System.out.printf("\nNum Entrada -> " + (i + 1)); // Espaço TESTE
                 // -> Gera neuronios de ENTRADA
                 neuronios = new ArrayList<Neuronio>();
                 for (int j = 0; j < totalEntradas; j++) {
@@ -180,11 +279,11 @@ public class MLPController {
             }
 
             mediaErroRedeAtual = calculaMediaRedeAtual(vetorErroRede);
-            if (numRepeticoes % 30 == 0) {
+//            if (numRepeticoes % 30 == 0) {
                 mediaErroRedeTotal.add(new MediaErroRede(numRepeticoes, mediaErroRedeAtual));
                 System.out.printf("MÉDIA ERRO DE REDE ["+(numRepeticoes+1)+"] - "+ mediaErroRedeAtual);
                 System.out.println("");
-            }
+//            }
 
 
             numRepeticoes++;
