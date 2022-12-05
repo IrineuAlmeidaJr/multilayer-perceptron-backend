@@ -3,6 +3,7 @@ package com.artificialintelligence.mlp.controller;
 import com.artificialintelligence.mlp.model.*;
 import com.artificialintelligence.mlp.model.FuncoesTransferencia.Linear;
 import com.artificialintelligence.mlp.model.FuncoesTransferencia.Logistica;
+import com.artificialintelligence.mlp.model.MatrizConfusao;
 import com.artificialintelligence.mlp.model.FuncoesTransferencia.TangenteHiperbolica;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,6 +15,7 @@ import java.util.List;
 
 @RestController
 public class MLPController {
+    MatrizConfusao matrizConfusao;
 
     CalculationParameters calculationParameters;
     String[] classes;
@@ -30,14 +32,20 @@ public class MLPController {
     List<MediaErroRede> mediaErroRedeTotal;
 
     @GetMapping("/grafico")
-    public List<MediaErroRede> saidaDados() {
+    public List<MediaErroRede> saidaDadosGrafico() {
 //        System.out.println("ENTROU - ");
         return mediaErroRedeTotal;
     }
 
     @GetMapping("/matriz")
-    public List<MediaErroRede> calculaArquivoTeste(@RequestBody EntradaDados dados) {
+    public MatrizConfusao saidaDadosMatriz() {
+//        System.out.println("ENTROU - ");
+        return matrizConfusao;
+    }
 
+    @PostMapping("/matriz")
+    public MatrizConfusao calculaArquivoTeste(@RequestBody EntradaDados dados) {
+        System.out.println("\n\nCALCULANDO MATRIZ CONFUSÃO");
         opcaoFuncaoTransferencia = dados.getCalculationParameters().getTransferFunction();
 
         dadosOneHotEncoding = new OneHotEncoding()
@@ -46,10 +54,18 @@ public class MLPController {
 
         int numCamadaOculta = dados.getCalculationParameters().getHiddenLayer();
         int totalLinhas = dadosOneHotEncoding.length;
-        int totalEntradas = dadosOneHotEncoding[0].length - classes.length;
+        int totalColunas = dadosOneHotEncoding[0].length;
+        int totalEntradas = totalColunas - classes.length;
         int totalSaidas = classes.length;
+        int totalNeuronio = totalEntradas + (totalEntradas * numCamadaOculta) + totalSaidas;
+        int posDesejado;
+
+        double valorSaidaArquivo;
+
+        matrizConfusao = new MatrizConfusao(totalSaidas, classes);
 
         normalizarEntradas(dadosOneHotEncoding, totalEntradas);
+
 
 
         for (int i = 0; i < totalLinhas; i++) {
@@ -71,7 +87,6 @@ public class MLPController {
                 neuronios.add(new Neuronio(0, 0, 0));
             }
 
-
             if (opcaoFuncaoTransferencia == 1) {
                 calcularNetSaida(neuronios, pesos, totalEntradas, new Linear());
             } else if (opcaoFuncaoTransferencia == 2) {
@@ -80,55 +95,83 @@ public class MLPController {
                 calcularNetSaida(neuronios, pesos, totalEntradas, new TangenteHiperbolica());
             }
 
-
-
-            // saber de quem está mais próximo é o resultado
+            // --> Verifica quem está mais próximo de 1, que será o resultado
             Neuronio tempNeuronio;
-            int posMenor = totalSaidas;
-            double valorSaidaAtual = neuronios.get(posMenor).getSaida();
-            double saidaMenor = valorSaidaAtual;
-            for(int atual = totalSaidas+1; atual < totalSaidas; atual++) {
+            int posMaior = totalNeuronio - totalSaidas;
+            double saidaMenor = neuronios.get(posMaior).getSaida();
+            double valorSaidaAtual;
+            for(int atual = posMaior+1; atual < totalNeuronio; atual++) {
                 valorSaidaAtual = neuronios.get(atual).getSaida();
-                if (valorSaidaAtual < saidaMenor) {
+                if (valorSaidaAtual > saidaMenor) {
                     saidaMenor = valorSaidaAtual;
-                    posMenor = atual;
+                    posMaior = atual;
                 }
             }
-            // TL = 5
-            // total entrada = 3
-            //  0      1      2   3  4
-            // ENT1   ENT2   CA   CB CC
 
-            // *** ATENÇÃO: isso é só um teste, tem que ver como irei fazer para
-            // chamar no front, só chamar por enquanto não retorna nada, só para ver
-            // se está calculando correto
+            posDesejado = retornaPosDesejado(i, totalEntradas, totalColunas);
 
-            posMenor = posMenor - (totalEntradas - totalSaidas);
-            switch (posMenor) {
+            posMaior =  posMaior - (totalNeuronio - totalSaidas);
+            switch (posMaior) {
                 case 0:
-                    System.out.println("X1");
+                    matrizConfusao.setMatriz(posDesejado, posMaior);
                     break;
                 case 1:
-                    System.out.println("X2");
+                    matrizConfusao.setMatriz(posDesejado, posMaior);
                     break;
                 case 2:
-                    System.out.println("X3");
+                    matrizConfusao.setMatriz(posDesejado, posMaior);
                     break;
                 case 3:
-                    System.out.println("X4");
+                    matrizConfusao.setMatriz(posDesejado, posMaior);
                     break;
                 case 4:
-                    System.out.println("X5");
-                    break;
-                case 5:
-                    System.out.println("X6");
+                    matrizConfusao.setMatriz(posDesejado, posMaior);
                     break;
             }
-
 
         }
 
-        return mediaErroRedeTotal;
+        // -- TESTE -> exibir Matriz Confução
+//        System.out.println("MATRIZ CONFUSÃO");
+//        int[][] matriz = matrizConfusao.getMatriz();
+//        for (int i=0; i < matriz.length; i++) {
+//            for (int j=0; j < matriz.length; j++) {
+//                System.out.printf(matriz[i][j] + " ");
+//            }
+//            System.out.printf("\n");
+//        }
+
+        // -- Calcula a Acurácia
+        double acerto = 0;
+        double erro = 0;
+        int[][] matriz = matrizConfusao.getMatriz();
+        for (int i=0; i < matriz.length; i++) {
+            for (int j=0; j < matriz.length; j++) {
+                if(i == j) {
+                    acerto += matriz[i][j];
+                } else {
+                    erro += matriz[i][j];
+                }
+            }
+        }
+
+        double acuracia = acerto / (acerto + erro) * 100;
+        System.out.println("ACERTO - " + acerto + " | ERRO - " + erro);
+        System.out.println("Acurácia - " + acuracia);
+        matrizConfusao.setAcuracia(acuracia);
+
+        return matrizConfusao;
+    }
+
+    int retornaPosDesejado(int i, int totalEntradas, int totalColunas) {
+        int posDesejado = 0;
+        for(int j=totalEntradas; j < totalColunas; j++) {
+            if (dadosOneHotEncoding[i][j] == 1) {
+                posDesejado = j;
+            }
+        }
+        posDesejado = posDesejado - totalEntradas;
+        return posDesejado;
     }
 
     @PostMapping("/entrada")
@@ -279,11 +322,11 @@ public class MLPController {
             }
 
             mediaErroRedeAtual = calculaMediaRedeAtual(vetorErroRede);
-//            if (numRepeticoes % 30 == 0) {
+            if (numRepeticoes % 20 == 0) {
                 mediaErroRedeTotal.add(new MediaErroRede(numRepeticoes, mediaErroRedeAtual));
                 System.out.printf("MÉDIA ERRO DE REDE ["+(numRepeticoes+1)+"] - "+ mediaErroRedeAtual);
                 System.out.println("");
-//            }
+            }
 
 
             numRepeticoes++;
@@ -295,7 +338,7 @@ public class MLPController {
         // -- FORMA ABAIXO É A CERTA
         }  while (numRepeticoes < totalRepeticoes &&
         mediaErroRedeAtual > valorErro);
-        System.out.println("\n\n *** SAIU ***");
+        System.out.println("\n *** FIM CALCULO MLP ***\n");
 
 
         // -- TESTE
